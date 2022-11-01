@@ -1,7 +1,5 @@
-from multiprocessing.connection import wait
 from deepface import DeepFace
 import cv2
-import time
 
 
 # Video
