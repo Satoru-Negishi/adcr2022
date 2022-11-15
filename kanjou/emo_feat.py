@@ -1,5 +1,4 @@
 ## py-featを使用したリアルタイム顔感情認識
-
 import cv2
 import numpy as np
 from feat import Detector
@@ -12,7 +11,7 @@ emotion_model = "resmasknet"
 detector = Detector(
     face_model="retinaface",
     landmark_model="mobilefacenet",
-    au_model='svm',
+    au_model='jaanet',
     emotion_model="fer",
     facepose_model="img2pose",
 )
