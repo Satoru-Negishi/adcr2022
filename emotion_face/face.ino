@@ -15,38 +15,163 @@ enum emotion {
   anger, disgust, fear, happiness, sadness, surprise, neutral
 };
 
-void happiness(){
+void happiness_face(){
+  canvas.fillScreen(canvas.color332(250,128,114));   
+//右目
+  //pushSprite
+  int right_eye_x = 200;
+  int right_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+right_eye_x, 30+right_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+right_eye_x, 30+right_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+right_eye_x, 30+right_eye_y,60,28, canvas.color332(250,128,114));  
+  //目
+  canvas.fillEllipse(30+right_eye_x, 70+right_eye_y, 30, 35, BLACK);
+  canvas.fillEllipse(30+right_eye_x, 74+right_eye_y, 32, 36, canvas.color332(250,128,114));
   
-  }
-  
-void sadness(){
-  
-  }
-  
-void surprise(){
-  
-  canvas.createSprite(80,60);
-  canvas.fillEllipse(30, 30, 30, 20, 0xFFFF);
-  canvas.fillCircle(30, 30, 15, 0x0000);
-  canvas.pushSprite(80, 60);
+//左目
+  //pushSprite
+  int left_eye_x = 60;
+  int left_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+left_eye_x, 30+left_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+left_eye_x, 30+left_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+left_eye_x, 30+left_eye_y,60,28, canvas.color332(250,128,114));  
+  //目
+  canvas.fillEllipse(30+left_eye_x, 70+left_eye_y, 30, 35, BLACK);
+  canvas.fillEllipse(30+left_eye_x, 74+left_eye_y, 32, 36, canvas.color332(250,128,114));
 
-  canvas.createSprite(80,60);
-  canvas.fillEllipse(30, 30, 30, 20, 0xFFFF);
-  canvas.fillCircle(30, 30, 15, 0x0000);
-  canvas.pushSprite(80+100, 60);    
+//口、鼻
+  //pushSprite
+  int nose_x = 130;
+  int nose_y = 130;
+  int mouth_x = 105;
+  int mouth_y = 150;
+  //口
+  //下唇影
+  canvas.fillEllipse(60+mouth_x, 48+mouth_y, 21, 10, BLACK);
+  canvas.fillEllipse(60+mouth_x, 48+mouth_y, 21, 5, canvas.color332(250,128,114));
+  canvas.fillRect(60-21+mouth_x,48-10+mouth_y,42,10, canvas.color332(250,128,114));
+  //唇間の影
+  canvas.fillEllipse(60+mouth_x, 18+mouth_y, 52, 30, BLACK);
+  canvas.fillEllipse(60+mouth_x, 18+mouth_y, 52, 25, canvas.color332(250,128,114));
+  canvas.fillRect(60-52+mouth_x,18-30+mouth_y,104,30,canvas.color332(250,128,114));  
+  //鼻
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 22, BLACK);
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 18, canvas.color332(250,128,114));
+  canvas.fillRect(35-20+nose_x, 25+nose_y,40,22, canvas.color332(250,128,114)); 
+ //表示
+  canvas.pushSprite(0, 0); 
   }
   
-void neutral(){
-  canvas.createSprite(80,60);
-  canvas.fillEllipse(30, 30, 30, 20, 0xFFFF);
-  canvas.fillCircle(30, 30, 15, 0x0000);
-  canvas.pushSprite(80, 60);
-
-  canvas.createSprite(80,60);
-  canvas.fillEllipse(30, 30, 30, 20, 0xFFFF);
-  canvas.fillCircle(30, 30, 15, 0x0000);
-  canvas.pushSprite(80+100, 60); 
+void sadness_face(){
   
+  }
+  
+void surprise_face(){
+  canvas.fillScreen(canvas.color332(250,128,114));   
+//右目
+  //pushSprite
+  int right_eye_x = 200;
+  int right_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+right_eye_x, 30-10+right_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+right_eye_x, 30-10+right_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+right_eye_x, 30-10+right_eye_y,60,28, canvas.color332(250,128,114));  
+  //白目
+  canvas.fillEllipse(30+right_eye_x, 50+right_eye_y, 28-5, 35+5, WHITE);
+  //黒目
+  canvas.fillEllipse(30+right_eye_x, 58+right_eye_y, 18-5, 22-7, BLACK);
+  //光
+  canvas.fillEllipse(23+right_eye_x, 51+right_eye_y, 5-2, 10-7, WHITE);
+  
+//左目
+  //pushSprite
+  int left_eye_x = 60;
+  int left_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+left_eye_x, 30-10+left_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+left_eye_x, 30-10+left_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+left_eye_x, 30-10+left_eye_y,60,28, canvas.color332(250,128,114));  
+  //白目
+  canvas.fillEllipse(30+left_eye_x, 50+left_eye_y, 28-5, 35+5, WHITE);
+  //黒目
+  canvas.fillEllipse(30+left_eye_x, 58+left_eye_y, 18-5, 22-7, BLACK);
+  //光
+  canvas.fillEllipse(23+left_eye_x, 51+left_eye_y, 5-2, 10-7, WHITE);
+
+//口、鼻
+  //pushSprite
+  int nose_x = 130;
+  int nose_y = 130;
+  int mouth_x = 105;
+  int mouth_y = 150; 
+  //鼻
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 22, BLACK);
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 18, canvas.color332(250,128,114));
+  canvas.fillRect(35-20+nose_x, 25+nose_y,40,22, canvas.color332(250,128,114));
+  //口
+  canvas.fillEllipse(60+mouth_x, 41+mouth_y, 35, 45, canvas.color332(205,92,92));
+  canvas.fillEllipse(60+mouth_x, 41+mouth_y, 35, 37, WHITE);
+  canvas.fillEllipse(60+mouth_x, 41+mouth_y, 35, 28, canvas.color332(152,81,75));
+   
+ //表示
+  canvas.pushSprite(0, 0); 
+  }
+  
+void neutral_face(){
+  canvas.fillScreen(canvas.color332(250,128,114));   
+//右目
+  //pushSprite
+  int right_eye_x = 200;
+  int right_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+right_eye_x, 30+right_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+right_eye_x, 30+right_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+right_eye_x, 30+right_eye_y,60,28, canvas.color332(250,128,114));  
+  //白目
+  canvas.fillEllipse(30+right_eye_x, 50+right_eye_y, 28, 35, WHITE);
+  //黒目
+  canvas.fillEllipse(30+right_eye_x, 58+right_eye_y, 18, 22, BLACK);
+  //光
+  canvas.fillEllipse(23+right_eye_x, 51+right_eye_y, 5, 10, WHITE);
+  
+//左目
+  //pushSprite
+  int left_eye_x = 60;
+  int left_eye_y = 50;
+  //眉毛
+  canvas.fillEllipse(30+left_eye_x, 30+left_eye_y, 30, 28, BLACK);
+  canvas.fillEllipse(30+left_eye_x, 30+left_eye_y, 30, 21, canvas.color332(250,128,114));
+  canvas.fillRect(30-30+left_eye_x, 30+left_eye_y,60,28, canvas.color332(250,128,114));  
+  //白目
+  canvas.fillEllipse(30+left_eye_x, 50+left_eye_y, 28, 35, WHITE);
+  //黒目
+  canvas.fillEllipse(30+left_eye_x, 58+left_eye_y, 18, 22, BLACK);
+  //光
+  canvas.fillEllipse(23+left_eye_x, 51+left_eye_y, 5, 10, WHITE);
+
+//口、鼻
+  //pushSprite
+  int nose_x = 130;
+  int nose_y = 130;
+  int mouth_x = 105;
+  int mouth_y = 150;
+  //口
+  //下唇影
+  canvas.fillEllipse(60+mouth_x, 48+mouth_y, 21, 10, BLACK);
+  canvas.fillEllipse(60+mouth_x, 48+mouth_y, 21, 5, canvas.color332(250,128,114));
+  canvas.fillRect(60-21+mouth_x,48-10+mouth_y,42,10, canvas.color332(250,128,114));
+  //唇間の影
+  canvas.fillEllipse(60+mouth_x, 18+mouth_y, 52, 30, BLACK);
+  canvas.fillEllipse(60+mouth_x, 18+mouth_y, 52, 25, canvas.color332(250,128,114));
+  canvas.fillRect(60-52+mouth_x,18-30+mouth_y,104,30,canvas.color332(250,128,114));  
+  //鼻
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 22, BLACK);
+  canvas.fillEllipse(35+nose_x, 25+nose_y, 20, 18, canvas.color332(250,128,114));
+  canvas.fillRect(35-20+nose_x, 25+nose_y,40,22, canvas.color332(250,128,114)); 
+ //表示
+  canvas.pushSprite(0, 0); 
   }
 
 
@@ -67,43 +192,43 @@ void setup() {
   enum emotion emo;
   emo = neutral;//取得された感情
   
-//  surprise();
-//  delay(100);  
-  
 }
 
 void loop(){
   M5.update();                      // 本体ボタン状態更新
   // LCD表示処理（canvas.で指定してメモリ内の仮想画面に描画していく）
-  canvas.fillScreen(BLACK);         // 背景塗り潰し
+  canvas.setBaseColor(canvas.color332(250,128,114));
+  canvas.fillScreen(canvas.color332(250,128,114));         // 背景塗り潰し
+  enum emotion emo;
+  emo = neutral;//取得された感情
 
-  swith(emo){
-    
-    case angry:
-    case disgust:
-    case fear:
-      netral();
-      break;
+ switch(emo){
+   
+   case angry:
+   case disgust:
+   case fear:
+     neutral_face();
+     break;
 
-     case happiness:
-      happiness();
-      break;
-      
-     case sadness:
-      sadness();
-      break;
-      
-     case surprise:
-      surprise();
-      break;
-      
-     case neutral:
-      neutral();
-      break;
-    
-    }
-  
-  delay(100); 
+    case happiness:
+     happiness_face();
+     break;
+     
+    case sadness:
+     sadness_face();
+     break;
+     
+    case surprise:
+     surprise_face();
+     break;
+     
+    case neutral:
+     neutral_face();
+     break;
+   
+   }
+ 
+ delay(100); 
   
   
   }
