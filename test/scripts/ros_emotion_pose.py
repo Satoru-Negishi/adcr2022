@@ -5,7 +5,7 @@
 import cv2 as cv
 import numpy as np
 from std_msgs.msg import String, Float32MultiArray
-from test.msg import pose
+from test.msg import pose as MsgPose
 
 #mediapipe_pose
 import copy
@@ -44,7 +44,7 @@ class Emotion_Pose(object):
 
         #ROS_PUB_SUB #################################################################
         self._emotion_pub = rospy.Publisher("emo_feat", String, queue_size=1)
-        self._pose_pub = rospy.Publisher("pose_mediapipe", pose, queue_size=1)  #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        self._pose_pub = rospy.Publisher("pose_mediapipe", MsgPose, queue_size=1)  #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         
         #引数解析 #################################################################
         args = self.get_args()
@@ -98,14 +98,14 @@ class Emotion_Pose(object):
         faces = self.detector.detect_faces(image)
         landmarks = self.detector.detect_landmarks(image, faces)
         emo_pred = self.detector.emotion_model.detect_emo(image, landmarks)
+        poses = self.detector.detect_facepose(image, faces, landmarks)
         pred_index = np.argmax(emo_pred[0])        
         #結果表示
         # print(self.emolist[pred_index])
         
-        return self.emolist[pred_index]
+        return self.emolist[pred_index], poses
         
     def main(self):
-        pose = pose()
         cap = cv.VideoCapture(self.cap_device)
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.cap_width)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.cap_height)
@@ -135,12 +135,12 @@ class Emotion_Pose(object):
             debug_Pimage = copy.deepcopy(Pimage)
             
             Eimage = np.expand_dims(image,0)
-
+            
             # 検出実施 #############################################################
             Pimage = cv.cvtColor(image, cv.COLOR_BGR2RGB)
             results = pose.process(Pimage)
-            
-            emotion.data = self.emotion_detect(Eimage)
+                                 
+            emotion.data, head_pose = self.emotion_detect(Eimage)
             
             # 座標取得 #############################################################
             if results.pose_world_landmarks is not None:
@@ -148,25 +148,18 @@ class Emotion_Pose(object):
                 LM_Lshoulder = [LMlist[11].x,LMlist[11].y,LMlist[11].z]
                 LM_Larm = [LMlist[15].x,LMlist[15].y,LMlist[15].z]
                 LM_Rshoulder = [LMlist[12].x,LMlist[12].y,LMlist[12].z]
-                LM_Rarm = [LMlist[16].x,LMlist[16].y,LMlist[16].z]        
+                LM_Rarm = [LMlist[16].x,LMlist[16].y,LMlist[16].z]
+            
+            if head_pose != None:
+                LM_head = [head_pose[0][0][0][0], head_pose[0][0][0][2]]    
             
             # 結果表示 ############################################################
             print("========================================================")
             print("Emotion:" + emotion.data)
             if results.pose_world_landmarks is not None:
-                pose.Lshoulder = LM_Lshoulder
-                pose.Larm = LM_Larm
-                pose.Rshoulder = LM_Rshoulder
-                pose.Rarm = LM_Larm
-                
-                # print("Landmark:",LMlist[0])
-                # pub_Landmarks = [LM_Lshoulder,LM_Larm,LM_Rshoulder,LM_Rarm] #[右肩, 右腕, 左肩, 左手]
-                # pub_Landmarks = [LMlist[0].x,LMlist[0].y,LMlist[0].z] 
-                # print(type(LMlist[0]))
-                # print(type(pub_Landmarks))
-                # array_forPublish = Float32MultiArray(data=pub_Landmarks)
-                # print("array_forPublish:",array_forPublish)
-                self._pose_pub.publish(pose)
+                array_forPublish = MsgPose(head=LM_head,Larm=LM_Larm,Rarm=LM_Rarm)
+                print("Landmark:",array_forPublish)
+                self._pose_pub.publish(array_forPublish)
 
             else:
                 print("Landmark: None")
