@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 #共通
 import cv2 as cv
 import numpy as np
@@ -12,6 +9,9 @@ import copy
 import argparse
 import mediapipe as mp
 from utils import CvFpsCalc
+
+#mideapipe_facemesh
+import math
 
 #emotion_detect
 import rospy
@@ -41,11 +41,13 @@ class Emotion_Pose(object):
         #感情リスト #################################################################
         self.emolist = ["anger", "disgust", "fear", "happiness", "sadness", "surprise", "neutral"]
         self.emotion = String()
+        #瞬き########################################################################
+        self.blink = String()
 
         #ROS_PUB_SUB #################################################################
         self._emotion_pub = rospy.Publisher("emo_feat", String, queue_size=1)
         self._pose_pub = rospy.Publisher("pose_mediapipe", MsgPose, queue_size=1)  #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        
+        self.face_pub = rospy.Publisher("face_mediapipe", String, queue_size=1)
         #引数解析 #################################################################
         args = self.get_args()
         self.cap_device = args.device
@@ -93,6 +95,82 @@ class Emotion_Pose(object):
 
         return args
     
+    def distance(self,v1,v2):
+        """
+        距離を計算,getEyeOpen関連の関数
+        """
+        return math.sqrt(math.pow(v1.x - v2.x, 2) + math.pow(v1.y - v2.y, 2))
+
+    def eyeLidRatio(self,eyeOuterCorner, eyeInnerCorner, eyeOuterUpperLid, eyeMidUpperLid, eyeInnerUpperLid, eyeOuterLowerLid, eyeMidLowerLid, eyeInnerLowerLid):
+        """
+        瞼の比率を計算、getEyeOpen関連の関，getEyeOpen関連の関数
+        """
+        eyeWidth = self.distance(eyeOuterCorner, eyeInnerCorner)
+        eyeOuterLidDistance  = self.distance(eyeOuterUpperLid, eyeOuterLowerLid)
+        eyeMidLidDistance  = self.distance(eyeMidUpperLid, eyeMidLowerLid)
+        eyeInnerLidDistance  = self.distance(eyeInnerUpperLid, eyeInnerLowerLid)
+        eyeLidAvg =  (eyeOuterLidDistance + eyeMidLidDistance + eyeInnerLidDistance) / 3
+        ratio = eyeLidAvg / eyeWidth
+        return ratio
+
+    def eyeLidRatio_left(self, results):
+        """
+        左瞼の比率を計算，getEyeOpen関連の関数
+        """
+        eyeOuterCorner = results.multi_face_landmarks[0].landmark[130]
+        eyeInnerCorner = results.multi_face_landmarks[0].landmark[133]
+        eyeOuterUpperLid = results.multi_face_landmarks[0].landmark[160]
+        eyeMidUpperLid  = results.multi_face_landmarks[0].landmark[159]
+        eyeInnerUpperLid = results.multi_face_landmarks[0].landmark[158]
+        eyeOuterLowerLid = results.multi_face_landmarks[0].landmark[144]
+        eyeMidLowerLid = results.multi_face_landmarks[0].landmark[145]
+        eyeInnerLowerLid = results.multi_face_landmarks[0].landmark[153]
+
+        return self.eyeLidRatio(eyeOuterCorner, eyeInnerCorner, eyeOuterUpperLid, eyeMidUpperLid, eyeInnerUpperLid, eyeOuterLowerLid, eyeMidLowerLid, eyeInnerLowerLid)
+
+    def eyeLidRatio_right(self,results):
+        """
+        右瞼の比率を計算，getEyeOpen関連の関数
+        """
+        eyeOuterCorner = results.multi_face_landmarks[0].landmark[359]#263
+        eyeInnerCorner = results.multi_face_landmarks[0].landmark[362]
+        eyeOuterUpperLid = results.multi_face_landmarks[0].landmark[387]
+        eyeMidUpperLid  = results.multi_face_landmarks[0].landmark[386]
+        eyeInnerUpperLid = results.multi_face_landmarks[0].landmark[385]
+        eyeOuterLowerLid = results.multi_face_landmarks[0].landmark[373]
+        eyeMidLowerLid = results.multi_face_landmarks[0].landmark[374]
+        eyeInnerLowerLid = results.multi_face_landmarks[0].landmark[380]
+
+        return self.eyeLidRatio(eyeOuterCorner, eyeInnerCorner, eyeOuterUpperLid, eyeMidUpperLid, eyeInnerUpperLid, eyeOuterLowerLid, eyeMidLowerLid, eyeInnerLowerLid)
+
+    def clamp(self,val,min_num,max_num):
+        """
+        比率と最大比率を比較，getEyeOpen関連の関数
+        """
+        return max(min(val, max_num), min_num)
+
+    def remap(self,ratio,low,high):
+        """
+        目の開き具合を再マッピングして感度を高める，getEyeOpen関連の関数
+        """
+        return (self.clamp(ratio,low,high) - low) / (high - low)
+
+    def getEyeOpen(self,results,side):
+        """
+        目の空き具合を計算
+        参考：https://github.com/yeemachine/kalidokit/blob/main/src/FaceSolver/calcEyes.ts
+        """
+        high = 0.85 #目が開いていると見なされる確率
+        low = 0.55  #目が閉じていると見なされる確率
+        if side == 'right':
+            eyeDistance =  self.eyeLidRatio_right(results)
+        elif side == 'left':
+            eyeDistance =  self.eyeLidRatio_left(results)
+        maxRatio  =  0.285 #人間の目の幅と高さの比率はおよそ .3 
+        ratio = self.clamp(eyeDistance / maxRatio, 0, 2)
+        eyeOpenRatio = self.remap(ratio, low, high) 
+        return eyeOpenRatio,ratio
+    
     def emotion_detect(self,image):
         #特徴抽出，感情推定
         faces = self.detector.detect_faces(image)
@@ -118,7 +196,11 @@ class Emotion_Pose(object):
             #enable_segmentation=enable_segmentation,   ###
             min_detection_confidence = self.min_detection_confidence,
             min_tracking_confidence = self.min_tracking_confidence,
-        )   
+        )
+        #facemesh
+        mp_face_mesh = mp.solutions.face_mesh # MLソリューションの顔メッシュインスタンス
+        face_mesh = mp_face_mesh.FaceMesh(
+            min_detection_confidence=0.5, min_tracking_confidence=0.5)  
         # FPS計測モジュール ########################################################
         cvFpsCalc = CvFpsCalc(buffer_len=10)
         
@@ -137,8 +219,11 @@ class Emotion_Pose(object):
             Eimage = np.expand_dims(image,0)
             
             # 検出実施 #############################################################
+            #mediapipe_pose
             Pimage = cv.cvtColor(image, cv.COLOR_BGR2RGB)
             results = pose.process(Pimage)
+            #mediapipe_face
+            face_results = face_mesh.process(Pimage)
                                  
             emotion.data, head_pose = self.emotion_detect(Eimage)
             
@@ -151,7 +236,18 @@ class Emotion_Pose(object):
                 LM_Rarm = [LMlist[16].x,LMlist[16].y,LMlist[16].z]
             
             if head_pose != None:
-                LM_head = [head_pose[0][0][0][0], head_pose[0][0][0][2]]    
+                LM_head = [head_pose[0][0][0][0], head_pose[0][0][0][2]] 
+
+            if face_results.multi_face_landmarks:
+                #開眼率
+                r_eyeOpenRatio,r_ratio = self.getEyeOpen(face_results,'right')
+                l_eyeOpenRatio,l_ratio = self.getEyeOpen(face_results,'left')
+            if(r_eyeOpenRatio<1):
+                self.blink.data = 'blink'
+            elif(l_eyeOpenRatio<1):
+                self.blink.data = 'blink' 
+            else:
+                self.blink.data = 'no_blink' 
             
             # 結果表示 ############################################################
             print("========================================================")
@@ -163,10 +259,17 @@ class Emotion_Pose(object):
 
             else:
                 print("Landmark: None")
+            
+            if face_results.multi_face_landmarks:
+                print("blink:" + self.blink.data)
+            else:
+                print("face_Landmark: None")
+            
             print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             
             #Publish ##############################################################
-            self._emotion_pub.publish(self.emotion)    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            self._emotion_pub.publish(self.emotion)
+            self._face_pub.publish(self.blink)    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
             # show_img = cv2.resize(img, (self.frameWidth, self.frameHeight))
             # cv2.imshow('Video', show_img)
@@ -183,15 +286,3 @@ emotion.main()
 
 while not rospy.is_shutdown():
     rospy.spin()
-
-# if __name__ == "__main__":
-#     rospy.init_node("emotion_detect")
-#     emotion = Emo_feat()
-#     emotion.emotion_detect()
-#     # try:
-#     #     rospy.spin()
-#     # except KeyboardInterrupt:
-#     #     pass    
-
-# if __name__ == '__main__':
-#     main()
