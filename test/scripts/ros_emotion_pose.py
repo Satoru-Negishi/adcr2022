@@ -3,6 +3,7 @@ import cv2 as cv
 import numpy as np
 from std_msgs.msg import String, Float32MultiArray
 from test.msg import pose as MsgPose
+import sys
 
 #mediapipe_pose
 import copy
@@ -47,7 +48,7 @@ class Emotion_Pose(object):
         #ROS_PUB_SUB #################################################################
         self._emotion_pub = rospy.Publisher("emo_feat", String, queue_size=1)
         self._pose_pub = rospy.Publisher("pose_mediapipe", MsgPose, queue_size=1)  #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        self.face_pub = rospy.Publisher("face_mediapipe", String, queue_size=1)
+        self._face_pub = rospy.Publisher("face_mediapipe", String, queue_size=1)
         #引数解析 #################################################################
         args = self.get_args()
         self.cap_device = args.device
@@ -280,6 +281,8 @@ class Emotion_Pose(object):
         cv.destroyAllWindows()
 
 #プログラム起動時実行 #############################################################
+if sys.argv:
+    del sys.argv[1:]
 rospy.init_node("emotion_detect")
 emotion = Emotion_Pose()
 emotion.main()
