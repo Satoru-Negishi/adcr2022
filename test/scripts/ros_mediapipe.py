@@ -6,7 +6,7 @@ from std_msgs.msg import String, Int32MultiArray,MultiArrayDimension
 import sys
 import rospy
 import mediapipe as mp
-from functools import partial
+from std_srvs.srv import Empty, EmptyResponse
 
 #mediapipe_pose
 import copy
@@ -30,8 +30,15 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     dims = map(lambda x: x.size, multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
 
+#pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
+def handle_service(req):
+    rospy.loginfo('ros_mediapipe: called')
+    return EmptyResponse()
 
-
+def service_server():
+    s = rospy.Service('emotion_ready', Empty, handle_service)
+    print('ros_mediapipe: Ready to Serve')
+    
 class ros_mediapipe(object):
     def __init__(self):
         #ビデオ表示関係 #################################################################
@@ -258,6 +265,9 @@ if sys.argv:
     del sys.argv[1:]
 rospy.init_node("ros_pose")
 main_plogram = ros_mediapipe()
+
+service_server() # モデルロード完了サービス受信
+
 main_plogram.main()
 while not rospy.is_shutdown():
     rospy.spin()
