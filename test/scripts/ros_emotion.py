@@ -7,6 +7,7 @@ from feat import Detector
 from std_msgs.msg import String, Int32MultiArray, MultiArrayDimension
 from std_srvs.srv import Empty
 
+#メッセージ型のmultiarryをnumpyに変換 #################################################
 def _multiarray2numpy(pytype, dtype, multiarray):
     """Convert multiarray to numpy.ndarray"""
     dims = [540,960,3]
@@ -14,8 +15,16 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     # print(multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
 
+#pyfeatのモデル読み込み完了のサービス(クライアント) ##################################
 def call_service():
-    rospy.liginfo('waiting service')
+    rospy.loginfo('waiting service')
+    rospy.wait_for_service('emotion_ready')
+    try:
+        service = rospy.ServiceProxy('emotion_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        print("service call failed: %s" % e)
+    
 
 class Emo_feat(object):
     def __init__(self):
@@ -24,11 +33,18 @@ class Emo_feat(object):
         landmark_model = "mobilenet"
         au_model = "rf"
         emotion_model = "resmasknet"
+        # self.detector = Detector(
+        #     face_model="retinaface",
+        #     landmark_model="mobilefacenet",
+        #     au_model='jaanet',
+        #     emotion_model="fer",
+        #     facepose_model="img2pose",
+        # )
         self.detector = Detector(
             face_model="retinaface",
             landmark_model="mobilefacenet",
-            au_model='jaanet',
-            emotion_model="fer",
+            au_model='svm',
+            emotion_model="svm",
             facepose_model="img2pose",
         )
 
@@ -47,8 +63,8 @@ class Emo_feat(object):
         #     show_img = cv2.resize(img, (self.frameWidth, self.frameHeight))
         #     cv2.imshow('Video', show_img)
         img = _multiarray2numpy(int,np.uint8, msg)
-        img = np.expand_dims(img,0)
-
+        # img = np.expand_dims(img,0)
+        print(img.shape)
         #特徴抽出，感情推定 ###################################################################################
         faces = self.detector.detect_faces(img)
         
@@ -76,8 +92,8 @@ print("1")
 rospy.init_node("emotion_detect")
 print("2")
 emotion = Emo_feat()
-# モデルロード完了サービス送信
 
+call_service() # モデルロード完了サービス送信[変更]
 
 print("3")
 emotion.main()
