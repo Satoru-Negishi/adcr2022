@@ -4,6 +4,8 @@ import rospy
 import numpy as np
 from test.msg import pose as MsgPose
 from std_msgs.msg import UInt16
+from std_srvs.srv import Empty, EmptyResponse
+
 
 # poseのlandmarkの座標について ###################################################
 #   x座標 0 - 960 （左 - 右）
@@ -20,6 +22,15 @@ WAIST_MIN = 0
 
 #首サーボモータ　65-115
 
+#pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
+def handle_service(req):
+    rospy.loginfo('ros_motor: called')
+    return EmptyResponse()
+
+def service_server():
+    s = rospy.Service('emotion_ready', Empty, handle_service)
+    print('ros_motor: Ready to Serve')
+
 class Landmark2Servo(object):
     def __init__(self):
         #servo制御角度用変数 #####################################################
@@ -35,7 +46,7 @@ class Landmark2Servo(object):
         self.waist_Pservo = 0
         self.neck_Pservo = 0
         
-        # I : ユーザの初期姿勢
+            # I : ユーザの初期姿勢
         self.ini_head_landmark = []
         self.ini_Larm_landmark = []
         self.ini_Rarm_landmark = []
@@ -44,12 +55,7 @@ class Landmark2Servo(object):
         
         # ROS_PUB_SUB ############################################################
         self._servo_pub = rospy.Publisher("servo", UInt16, queue_size=1)
-        
-    def callback(self,msg): #pose_mediapipe受信時実行関数
-        # rospy.loginfo(msg)
-        if self.initialize:
-            self.position_initialize(msg)
-        
+   
     def position_initialize(self,msg):
         self.initialize = False
         self.ini_head_landmark = list(msg.head)
@@ -58,6 +64,18 @@ class Landmark2Servo(object):
         print(self.ini_head_landmark)
         print(self.ini_Larm_landmark)
         print(self.ini_Rarm_landmark)
+       
+    # def head_landmark2servo(self):
+         
+        
+    def callback(self,msg): #pose_mediapipe受信時実行関数
+        # rospy.loginfo(msg)
+        if self.initialize:
+            self.position_initialize(msg)
+        
+        
+        
+
     
     def main(self):
         self._servo_sub = rospy.Subscriber("pose_mediapipe", MsgPose, self.callback)
@@ -68,6 +86,9 @@ class Landmark2Servo(object):
 # main() ########################################################################   
 rospy.init_node('pose2servo')
 motors = Landmark2Servo()
+
+service_server() # モデルロード完了サービス受信
+
 motors.main()
 while not rospy.is_shutdown():
     rospy.spin()
