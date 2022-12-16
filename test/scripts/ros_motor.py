@@ -7,9 +7,9 @@ from std_msgs.msg import UInt16
 from std_srvs.srv import Empty, EmptyResponse
 
 
-# poseのlandmarkの座標について ###################################################
-#   x座標 0 - 960 （左 - 右）
-#   y座標 0 - 540 （上 - 下）
+# poseのworld_landmarkの座標について ###################################################
+#   x座標 1.0 , -1.0 （左 - 右）
+#   y座標 0.0 , -1.0 （下 - 上）
 
 CENTER = 90
 
@@ -61,11 +61,26 @@ class Landmark2Servo(object):
         self.ini_head_landmark = list(msg.head)
         self.ini_Larm_landmark = list(msg.Larm)
         self.ini_Rarm_landmark = list(msg.Rarm)
-        print(self.ini_head_landmark)
-        print(self.ini_Larm_landmark)
-        print(self.ini_Rarm_landmark)
+        rospy.loginfo("landmark initialize")
+        rospy.loginfo("[ini_head]"+self.ini_head_landmark)
+        rospy.loginfo("[ini_Larm]"+self.ini_Larm_landmark)
+        rospy.loginfo("[ini_Rarm]"+self.ini_Rarm_landmark)
        
     # def head_landmark2servo(self):
+    
+    def arm_landmark2servo(self,msg,LR):
+        if LR == 'left':
+            self.Larm_Pservo = self.Larm_Nservo
+            self.Larm_Nservo = msg.Larm / 3
+        elif LR == 'right':
+            self.Rarm_Pservo = self.Rarm_Nservo
+            self.Rarm_Nservo = msg.Rarm / 3
+        else:
+            pass 
+        
+        return
+               
+        
          
         
     def callback(self,msg): #pose_mediapipe受信時実行関数
