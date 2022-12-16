@@ -7,6 +7,8 @@ from feat import Detector
 from std_msgs.msg import String, Int32MultiArray, MultiArrayDimension
 from std_srvs.srv import Empty
 
+import time
+
 #メッセージ型のmultiarryをnumpyに変換 #################################################
 def _multiarray2numpy(pytype, dtype, multiarray):
     """Convert multiarray to numpy.ndarray"""
@@ -67,14 +69,15 @@ class Emo_feat(object):
         print(img.shape)
         #特徴抽出，感情推定 ###################################################################################
         faces = self.detector.detect_faces(img)
-        
+        start = time.time()
         if faces == [[]]:
             print("No faces found")
         else:
             landmarks = self.detector.detect_landmarks(img, faces)
             emo_pred = self.detector.emotion_model.detect_emo(img, landmarks)
             # poses = self.detector.detect_facepose(img, faces, landmarks) #実行時負荷増
-
+            end = time.time()
+            print("time:",end-start)
             #結果表示 ###################################################################################
             pred_index = np.argmax(emo_pred[0])
             print(self.emolist[pred_index])

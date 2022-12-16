@@ -259,7 +259,6 @@ class ros_mediapipe(object):
         cap.release()
         cv.destroyAllWindows()
 
-
 #プログラム起動時実行 #############################################################
 if sys.argv:
     del sys.argv[1:]
