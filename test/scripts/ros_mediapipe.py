@@ -232,12 +232,12 @@ class ros_mediapipe(object):
                 #開眼率
                 r_eyeOpenRatio,r_ratio = self.getEyeOpen(face_results,'right')
                 l_eyeOpenRatio,l_ratio = self.getEyeOpen(face_results,'left')
-            if(r_eyeOpenRatio<1):
-                self.blink.data = 'blink'
-            elif(l_eyeOpenRatio<1):
-                self.blink.data = 'blink' 
-            else:
-                self.blink.data = 'no_blink' 
+                if(r_eyeOpenRatio<1):
+                    self.blink.data = 'blink'
+                elif(l_eyeOpenRatio<1):
+                    self.blink.data = 'blink' 
+                else:
+                    self.blink.data = 'no_blink' 
             
             # 結果表示 ############################################################
             print("========================================================")
