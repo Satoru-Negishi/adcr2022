@@ -2,14 +2,22 @@
 ## 顔方向認識
 import cv2
 import numpy as np
+import torch
+from PIL import Image
 from feat import Detector
+from torchvision import transforms
+
+def cv2pil(imgCV):
+    imgCV_RGB = imgCV[:, :, ::-1] # H方向とW方向はそのままに、BGRを逆順にする
+    imgPIL = Image.fromarray(imgCV_RGB)
+    return imgPIL
 
 #モデル指定
 detector = Detector(
     face_model="retinaface",
     landmark_model="mobilefacenet",
-    au_model='jaanet',
-    emotion_model="fer",
+    au_model='svm',
+    emotion_model="resmasknet",
     facepose_model="img2pose",
 )
 
@@ -25,12 +33,15 @@ while True:
     #画像取得
     ret, img = cap.read()
 
-    img = cv2.imread("imtest.jpg")
+    # img = cv2.imread("imtest.jpg")
 
     img = cv2.resize(img, (frameWidth, frameHeight))
     cv2.imshow('Video', img)
+    img = cv2pil(img)
+    img = transforms.PILToTensor()(img)
+    img = img.numpy()
     img = np.expand_dims(img,0)
-
+    img = torch.from_numpy(img)
     #特徴抽出，感情推定，顔方向推定
     faces = detector.detect_faces(img)
 
@@ -40,8 +51,8 @@ while True:
         continue
 
     landmarks = detector.detect_landmarks(img, faces)
-    emo_pred = detector.emotion_model.detect_emo(img, landmarks)
-    poses = detector.detect_facepose(img, faces, landmarks)
+    emo_pred = detector.detect_emotions(img,faces, landmarks)
+    poses = detector.detect_facepose(img, landmarks)
     
     #結果表示
     pred_index = np.argmax(emo_pred[0])
