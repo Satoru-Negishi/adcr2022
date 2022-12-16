@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/snegishi/catkin_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/snegishi/catkin_ws/src/rosserial/rosserial_server/include/**",
+        "/home/snegishi/catkin_ws/src/rosserial/rosserial_test/include/**",
+        "/home/snegishi/catkin_ws/src/test/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
