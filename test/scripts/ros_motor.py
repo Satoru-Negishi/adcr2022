@@ -3,7 +3,7 @@
 import rospy
 import numpy as np
 from test.msg import pose as MsgPose
-from std_msgs.msg import UInt16MultiArray
+from std_msgs.msg import UInt16MultiArray, MultiArrayDimension
 from std_srvs.srv import Empty, EmptyResponse
 
 
@@ -21,6 +21,15 @@ WAIST_MAX = 180
 WAIST_MIN = 0
 
 #首サーボモータ　65-115
+
+
+def _numpy2multiarray(multiarray_type, np_array):
+    """Convert numpy.ndarray to multiarray"""
+    multiarray = multiarray_type()
+    multiarray.layout.dim = [MultiArrayDimension("dim%d" % i, np_array.shape[i], np_array.shape[i] * np_array.dtype.itemsize) for i in range(np_array.ndim)]
+    multiarray.data = np_array.reshape(1, -1)[0].tolist()
+    return multiarray
+
 
 #pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
 def handle_service(req):
@@ -77,7 +86,7 @@ class Landmark2Servo(object):
                 self.Larm_Nservo = 0
             if self.Larm_Nservo > 180:
                 self.Larm_Nservo = 180
-            rospy.loginfo("L_landmark"+landmark[1]+"[Larm]: "+self.Larm_Nservo)
+            print("L_landmark:",landmark[1]," [Larm]: ",self.Larm_Nservo)
         elif LR == 'right':
             self.Rarm_Pservo = self.Rarm_Nservo
             self.Rarm_Nservo = round(landmark[1]*180)
@@ -85,7 +94,7 @@ class Landmark2Servo(object):
                 self.Rarm_Nservo = 0
             if self.Rarm_Nservo > 180:
                 self.Rarm_Nservo = 180
-            rospy.loginfo("R_landmark"+landmark[1]+"[Rarm]: "+self.Larm_Nservo)
+            print("R_landmark:",landmark[1]," [Rarm]: ",self.Larm_Nservo)
         else:
             pass 
         return
@@ -108,7 +117,10 @@ class Landmark2Servo(object):
         self.arm_landmark2servo(self.Larm_landmark,'left')
         self.arm_landmark2servo(self.Rarm_landmark,'right')
         
-        array_forPublish = UInt16MultiArray([90,self.Larm_Nservo,self.Rarm_Nservo,90])
+        
+        np_forservo = np.array([90,self.Larm_Nservo,self.Rarm_Nservo,90])
+        array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
+        # array_forPublish = UInt16MultiArray([90,self.Larm_Nservo,self.Rarm_Nservo,90])
         self._servo_pub.publish(array_forPublish)
         
     def main(self):
