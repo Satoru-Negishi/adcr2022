@@ -6,6 +6,9 @@ import numpy as np
 from feat import Detector
 from std_msgs.msg import String, Int32MultiArray, MultiArrayDimension
 from std_srvs.srv import Empty
+from torchvision import transforms
+from PIL import Image
+import torch
 
 import time
 
@@ -26,7 +29,11 @@ def call_service():
         response = service()
     except rospy.ServiceException as  e:
         print("service call failed: %s" % e)
-    
+        
+def cv2pil(imgCV):
+    imgCV_RGB = imgCV[:, :, ::-1] # H方向とW方向はそのままに、BGRを逆順にする
+    imgPIL = Image.fromarray(imgCV_RGB)
+    return imgPIL
 
 class Emo_feat(object):
     def __init__(self):
@@ -35,18 +42,11 @@ class Emo_feat(object):
         landmark_model = "mobilenet"
         au_model = "rf"
         emotion_model = "resmasknet"
-        # self.detector = Detector(
-        #     face_model="retinaface",
-        #     landmark_model="mobilefacenet",
-        #     au_model='jaanet',
-        #     emotion_model="fer",
-        #     facepose_model="img2pose",
-        # )
         self.detector = Detector(
             face_model="retinaface",
             landmark_model="mobilefacenet",
             au_model='svm',
-            emotion_model="svm",
+            emotion_model="resmasknet",
             facepose_model="img2pose",
         )
 
@@ -65,19 +65,24 @@ class Emo_feat(object):
         #     show_img = cv2.resize(img, (self.frameWidth, self.frameHeight))
         #     cv2.imshow('Video', show_img)
         img = _multiarray2numpy(int,np.uint8, msg)
-        # img = np.expand_dims(img,0)
-        print(img.shape)
+        img = cv2pil(img)
+        img = transforms.PILToTensor()(img)
+        img = img.numpy()
+        img = np.expand_dims(img,0)
+        img = torch.from_numpy(img)
+
         #特徴抽出，感情推定 ###################################################################################
         faces = self.detector.detect_faces(img)
-        start = time.time()
+        # start = time.time()
         if faces == [[]]:
             print("No faces found")
         else:
             landmarks = self.detector.detect_landmarks(img, faces)
-            emo_pred = self.detector.emotion_model.detect_emo(img, landmarks)
+            print(landmarks)
+            emo_pred = self.detector.emotion_model.detect_emo(img, faces, landmarks)
             # poses = self.detector.detect_facepose(img, faces, landmarks) #実行時負荷増
-            end = time.time()
-            print("time:",end-start)
+            # end = time.time()
+            # print("time:",end-start)
             #結果表示 ###################################################################################
             pred_index = np.argmax(emo_pred[0])
             print(self.emolist[pred_index])

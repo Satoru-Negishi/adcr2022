@@ -7,19 +7,19 @@
 
     <node pkg="rosserial_python" type="serial_node.py" name="serial_node_m5stack">
         <param name="port" value="/dev/ttyACM1" />
-        <param name="baud" value="11520" />
+        <param name="baud" value="115200" />
     </node>
 
     <!-- ###################### メインプログラム ################################### -->
         <!-- スクリーン出力なし -->
     <node pkg="test" name= "emotion_detect" type="ros_emotion.py" />
     <node pkg="test" name= "pose_detect" type="ros_mediapipe.py" />
-    <node pkg="test" name= "pose2servo" type="ros_motor.py"  />
+    <!-- <node pkg="test" name= "pose2servo" type="ros_motor.py"  /> -->
    
         <!-- スクリーン出力あり -->
     <!-- <node pkg="test" name= "emotion_detect" type="ros_emotion.py" output="screen" /> -->
     <!-- <node pkg="test" name= "pose_detect" type="ros_mediapipe.py" output="screen"/> -->
-    <!-- <node pkg="test" name= "pose2servo" type="ros_motor.py" output="screen" />   -->
+    <node pkg="test" name= "pose2servo" type="ros_motor.py" output="screen" />  
 
     <!-- ###################### デバック・テストプログラム ######################### -->
     <!-- <node pkg="test" name= "emo_feat" type="ros_emo_feat.py" output="screen" /> -->
