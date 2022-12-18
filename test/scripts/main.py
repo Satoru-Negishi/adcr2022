@@ -4,7 +4,7 @@ import rospy
 import random
 import numpy as np
 from std_msgs.msg import String,UInt16MultiArray,MultiArrayDimension
-#from std_srvs.srv import Empty, EmptyResponse
+from std_srvs.srv import Empty
 
 #numpyをメッセージ型のmultiarryに変換 #################################################
 def _numpy2multiarray(multiarray_type, np_array):
@@ -19,6 +19,15 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     dims = map(lambda x: x.size, multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
 
+#キー入力読み込み完了のサービス(クライアント) ##################################
+def call_service():
+    rospy.loginfo('waiting service')
+    rospy.wait_for_service('EnterKeys_ready')
+    try:
+        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        print("service call failed: %s" % e)
     
 class main_infomation(object):
     def __init__(self):
@@ -120,6 +129,7 @@ class main_infomation(object):
 rospy.init_node("main_infomation")
 main_plogram = main_infomation()
 exp_fil, motor_sel_l, blink_detc = main_plogram.key_reception()
+#call_service()#キー入力完了サービス送信
 main_plogram.main(exp_fil, motor_sel_l, blink_detc)
 while not rospy.is_shutdown():
     rospy.spin()
