@@ -1,70 +1,148 @@
 #!/usr/bin/env python
-## py-featを使用したリアルタイム顔感情認識
 import rospy
-import cv2
+import random
 import numpy as np
-from feat import Detector
-from std_msgs.msg import String
+from std_msgs.msg import String,UInt16MultiArray,MultiArrayDimension
+from std_srvs.srv import Empty
+import tkinter as tk
+import sys
 
-class Emo_feat(object):
-    def __init__(self):
-        #モデル指定
-        face_model = "retinaface"
-        landmark_model = "mobilenet"
-        au_model = "rf"
-        emotion_model = "resmasknet"
-        self.detector = Detector(
-            face_model="retinaface",
-            landmark_model="mobilefacenet",
-            au_model='jaanet',
-            emotion_model="fer",
-            facepose_model="img2pose",
-        )
+#numpyをメッセージ型のmultiarryに変換 #################################################
+def _numpy2multiarray(multiarray_type, np_array):
+    """Convert numpy.ndarray to multiarray"""
+    multiarray = multiarray_type()
+    multiarray.layout.dim = [MultiArrayDimension("dim%d" % i, np_array.shape[i], np_array.shape[i] * np_array.dtype.itemsize) for i in range(np_array.ndim)]
+    multiarray.data = np_array.reshape(1, -1)[0].tolist()
+    return multiarray
 
-        #ビデオ表示関係
-        self.cap = cv2.VideoCapture(0)
-        self.frameWidth = 640
-        self.frameHeight = 480
+def _multiarray2numpy(pytype, dtype, multiarray):
+    """Convert multiarray to numpy.ndarray"""
+    # dims = map(lambda x: x.size, multiarray.layout.dim)
+    dims = [4]
+    return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
 
-        #感情リスト
-        self.emolist = ["anger", "disgust", "fear", "happiness", "sadness", "surprise", "neutral"]
-        self.emotion = String()
-
-        self._string_pub = rospy.Publisher("emo_feat", String, queue_size=1)
+#キー入力読み込み完了のサービス(クライアント) ##################################
+def call_service():
+    rospy.loginfo('waiting service')
+    rospy.wait_for_service('EnterKeys_ready')
+    try:
+        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        print("service call failed: %s" % e)
     
-    def emotion_detect(self):
-        #画像取得
-        rate = rospy.Rate(10)
-        while not rospy.is_shutdown():
-            ret, img = self.cap.read()
-            show_img = cv2.resize(img, (self.frameWidth, self.frameHeight))
-            cv2.imshow('Video', show_img)
-            img = np.expand_dims(img,0)
+class main_infomation(object):
+    def __init__(self):
+        #########################################################################
+        self.blink = String()
+        self.emotion = String()
+        #ROS_PUB_SUB #################################################################
+        self._mian_pose_pub = rospy.Publisher("main_pose", UInt16MultiArray, queue_size=1)  
+        self._main_blink_pub = rospy.Publisher("main_blink", String, queue_size=1)
+        self._main_emotion_pub = rospy.Publisher("main_emotion", String, queue_size=1)
+        
+    def key_reception(self):
+        """
+        キーボード入力を受け付ける
+        """
+        #表情表出フィルタの有無の選択
+        rospy.loginfo('Please select whether or not there is an facial expression filter. [yes or no] ')
+        try:
+            while True:
+                exp_fil = input()
+                if (exp_fil == 'yes') or (exp_fil== 'no'):
+                    break
+            rospy.loginfo("facial expression filter: %s", exp_fil)
+        except KeyboardInterrupt:
+            sys.exit()
+        #使用するモータの選択
+        rospy.loginfo('Enter all the motors to be used from [head,waist,arm], or enter ALL if all motors are used.  (ex)When using the head and waist => head,waist')
+        try:
+            while True:
+                Inapplicable_characters = False
+                motor_sel = input()
+                motor_sel_l = motor_sel.split(',')
+                for word in motor_sel_l:
+                    if not word in ['head','waist','arm','ALL']:
+                        Inapplicable_characters = True
+                if Inapplicable_characters == False:
+                    break
+            rospy.loginfo("motor used: %s", motor_sel_l)
+            unused = list(set(['head','waist','arm'])^ set(motor_sel_l))
+            rospy.loginfo("%s",unused)
+        except KeyboardInterrupt:
+            sys.exit()
+        #瞬き検出の有無の選択
+        rospy.loginfo('Use blink detection? [yes or no]')
+        try:
+            while True:
+                blink_detc = input()
+                if (blink_detc == 'yes') or (blink_detc== 'no'):
+                    break
+            rospy.loginfo("Use blink detection?: %s", blink_detc)
+        except KeyboardInterrupt:
+            sys.exit()
+        return exp_fil,motor_sel_l,blink_detc
+  
+    def pose_messageCb(self,msg,motor_sel_l):
+        """
+        モータ
+        """
+        if (('ALL' in motor_sel_l) or (len(motor_sel_l) == 3)):
+            self._mian_pose_pub.publish(msg)
+        else:
+            unused = list(set(['head','waist','arm'])^ set(motor_sel_l))
+            print(unused)
+            nparray_msg=_multiarray2numpy(int, np.uint16, msg)
+            for site in unused:
+                if site == 'head':
+                    nparray_msg[0] = 90
+                elif site == 'waist':
+                    nparray_msg[3] = 90
+                elif site == 'arm':
+                    nparray_msg[1] = 180
+                    nparray_msg[2] = 0
+            f_msg = _numpy2multiarray(UInt16MultiArray,nparray_msg)
+            self._mian_pose_pub.publish(f_msg)
 
-            #特徴抽出，感情推定
-            faces = self.detector.detect_faces(img)
-            landmarks = self.detector.detect_landmarks(img, faces)
-            emo_pred = self.detector.emotion_model.detect_emo(img, landmarks)
-            
-            #結果表示
-            pred_index = np.argmax(emo_pred[0])
-            # print(self.emolist[pred_index])
-            self.emotion.data = self.emolist[pred_index]
-            self._string_pub.publish(self.emotion)
-            rate.sleep()
+    def blink_messageCb(self,msg,blink_detc):
+        """
+        瞬き
+        """
+        if blink_detc == 'yes':
+            self.blink.data = msg.data #no_blink,blink
+            self._main_blink_pub.publish(self.blink)
+        else:
+            self.blink.data =random.choice(['no_blink','no_blink','no_blink','blink'])  
+            self._main_blink_pub.publish(self.blink)
 
-rospy.init_node("emotion_detect")
-emotion = Emo_feat()
-emotion.emotion_detect()
-
+    def emo_messageCb(self,msg,exp_fil):
+        """
+        顔表情
+        """
+        if exp_fil == 'yes': #フィルタあり
+            if msg.data in ['anger', 'disgust','fear']:
+                self.emotion.data = 'neutral'
+            else:
+                self.emotion.data = msg.data
+            self._main_emotion_pub.publish(self.emotion)  
+        else:
+            self.emotion.data = msg.data
+            self._main_emotion_pub.publish(self.emotion)       
+    
+    def main(self, exp_fil, motor_sel_l, blink_detc):
+        self._mian_pose_sub = rospy.Subscriber("servo", UInt16MultiArray, self.pose_messageCb, motor_sel_l)  
+        self._main_blink_sub = rospy.Subscriber("face_mediapipe", String, self.blink_messageCb, blink_detc)
+        self._main_emotion_sub = rospy.Subscriber("emo_feat", String, self.emo_messageCb, exp_fil)
+        
+                    
+#プログラム起動時実行 #############################################################
+rospy.init_node("main_infomation")
+# root = tk.Tk()
+# root.mainloop()
+main_plogram = main_infomation()
+exp_fil, motor_sel_l, blink_detc = main_plogram.key_reception()
+# call_service()#キー入力完了サービス送信
+main_plogram.main(exp_fil, motor_sel_l, blink_detc)
 while not rospy.is_shutdown():
     rospy.spin()
-
-# if __name__ == "__main__":
-#     rospy.init_node("emotion_detect")
-#     emotion = Emo_feat()
-#     emotion.emotion_detect()
-#     # try:
-#     #     rospy.spin()
-#     # except KeyboardInterrupt:
-#     #     pass    
