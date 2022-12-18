@@ -10,10 +10,10 @@ class Test_ar(object):
         self._rarm_sub = rospy.Subscriber("rarm", String, self.cb_rarm,queue_size=1)
 
         
-    def cb_emo(self,msg):
-        print("[Larm]: ",msg.data)        
-    def cb_face(self,msg):
-        print("[Rarm]: ", msg.data)
+    def cb_larm(self,msg):
+        rospy.loginfo("[Larm]: %d",msg.data)        
+    def cb_rarm(self,msg):
+        rospy.loginfo("[Rarm]: %d", msg.data)
 
         
 rospy.init_node('m5_debug')

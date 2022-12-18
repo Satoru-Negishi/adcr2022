@@ -265,7 +265,7 @@ if sys.argv:
 rospy.init_node("ros_pose")
 main_plogram = ros_mediapipe()
 
-# service_server() # モデルロード完了サービス受信
+service_server() # モデルロード完了サービス受信
 
 main_plogram.main()
 while not rospy.is_shutdown():
