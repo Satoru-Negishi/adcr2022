@@ -6,10 +6,9 @@ from std_msgs.msg import String, Int32MultiArray,MultiArrayDimension
 import sys
 import rospy
 import mediapipe as mp
-from std_srvs.srv import Empty, EmptyResponse
+from std_srvs.srv import Empty
 
 #mediapipe_pose
-import copy
 import argparse
 from utils import CvFpsCalc
 from test.msg import pose as MsgPose
@@ -30,15 +29,28 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     dims = map(lambda x: x.size, multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
 
-#pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
-def handle_service(req):
-    rospy.loginfo('ros_mediapipe: called')
-    return EmptyResponse()
+#キー入力完了のサービス(クライアント) ##################################
+def key_call_service():
+    # rospy.loginfo('[KEY][CLIENT]ros_mediapipe: waiting service')
+    rospy.wait_for_service('EnterKeys_ready')
+    try:
+        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        rospy.loginfo("[KEY][CLIENT]ros_mediapipe: service call failed: %s" % e)
 
-def service_server():
-    s = rospy.Service('emotion_ready', Empty, handle_service)
-    print('ros_mediapipe: Ready to Serve')
-    
+#pyfeatのモデル読み込み完了のサービス(クライアント) ##################################
+def emo_call_service():
+    # rospy.loginfo('[EMO][CLIENT]ros_mediapipe: waiting service')
+    rospy.wait_for_service('emotion_ready')
+    try:
+        service = rospy.ServiceProxy('emotion_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        rospy.loginfo("[EMO][CLIENT]ros_mediapipe: service call failed: %s" % e)
+
+
+
 class ros_mediapipe(object):
     def __init__(self):
         #ビデオ表示関係 #################################################################
@@ -240,21 +252,22 @@ class ros_mediapipe(object):
                     self.blink.data = 'no_blink' 
             
             # 結果表示 ############################################################
-            print("========================================================")
+            # print("========================================================")
             if results.pose_world_landmarks is not None:
                 array_forPublish = MsgPose(head=LM_head,Larm=LM_Larm,Rarm=LM_Rarm)
-                print("Landmark:",array_forPublish)
+                # print("Landmark:",array_forPublish)
                 self._pose_pub.publish(array_forPublish)
             else:
-                print("Landmark: None")
+                pass
+                # print("Landmark: None")
             
             if face_results.multi_face_landmarks:
-                print("blink:" + self.blink.data)
+                # print("blink:" + self.blink.data)
                 self._face_pub.publish(self.blink)
             else:
-                print("blink:face_Landmark None")
-            
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                # print("blink:face_Landmark None")
+                pass
+            # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                         
         cap.release()
         cv.destroyAllWindows()
@@ -263,9 +276,12 @@ class ros_mediapipe(object):
 if sys.argv:
     del sys.argv[1:]
 rospy.init_node("ros_pose")
-main_plogram = ros_mediapipe()
 
-service_server() # モデルロード完了サービス受信
+key_call_service() #キー入力完了をリクエスト
+
+emo_call_service() #モデルロード完了をリクエスト
+
+main_plogram = ros_mediapipe()
 
 main_plogram.main()
 while not rospy.is_shutdown():

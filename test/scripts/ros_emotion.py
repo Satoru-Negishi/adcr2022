@@ -4,13 +4,15 @@ import rospy
 import cv2
 import numpy as np
 from feat import Detector
-from std_msgs.msg import String, Int32MultiArray, MultiArrayDimension
+from std_msgs.msg import String, Int32MultiArray
+from std_msgs.msg import Empty as msg_Empty
 from std_srvs.srv import Empty,EmptyResponse
 from torchvision import transforms
 from PIL import Image
 import torch
 
-import time
+_motor_redy_pub = rospy.Publisher("motor_ready",msg_Empty,queue_size=1,latch=True)
+hoge = msg_Empty()
 
 #メッセージ型のmultiarryをnumpyに変換 #################################################
 def _multiarray2numpy(pytype, dtype, multiarray):
@@ -19,27 +21,26 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     # dims = map(lambda x: x.size, multiarray.layout.dim)
     # print(multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
+    
+#キー入力完了のサービス(クライアント) ##################################
+def call_service():
+    # rospy.loginfo('[KEY][CLIENT]ros_emotion: waiting service')
+    rospy.wait_for_service('EnterKeys_ready')
+    try:
+        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        rospy.loginfo("[KEY][CLIENT]ros_emotion: service call failed: %s" % e)
 
-#キー読み込み完了のサービス(サーバー) ##################################
+#pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
 def handle_service(req):
-    rospy.loginfo('ros_emotion: called')
+    # rospy.loginfo('[EMO][SERVER]ros_mediapipe: called')
     return EmptyResponse()
 
 def service_server():
-    s = rospy.Service('EnterKeys_ready', Empty, handle_service)
-    print('ros_emotion: Ready to Serve')
+    s = rospy.Service('emotion_ready', Empty, handle_service)
+    # rospy.loginfo('[EMO][SERVER]ros_mediapipe: Ready to Serve')
 
-
-#pyfeatのモデル読み込み完了のサービス(クライアント) ##################################
-def call_service():
-    rospy.loginfo('waiting service')
-    rospy.wait_for_service('emotion_ready')
-    try:
-        service = rospy.ServiceProxy('emotion_ready', Empty)
-        response = service()
-    except rospy.ServiceException as  e:
-        print("service call failed: %s" % e)
-        
 def cv2pil(imgCV):
     imgCV_RGB = imgCV[:, :, ::-1] # H方向とW方向はそのままに、BGRを逆順にする
     imgPIL = Image.fromarray(imgCV_RGB)
@@ -68,7 +69,6 @@ class Emo_feat(object):
         self._string_pub = rospy.Publisher("emo_feat", String, queue_size=1)
     
     def emotion_detect(self,msg):
-        print("5")
         #画像取得 ###################################################################################
         # while not rospy.is_shutdown():
         #     ret, img = self.cap.read()
@@ -88,14 +88,14 @@ class Emo_feat(object):
             print("No faces found")
         else:
             landmarks = self.detector.detect_landmarks(img, faces)
-            print(landmarks)
+            # print(landmarks)
             emo_pred = self.detector.emotion_model.detect_emo(img, faces, landmarks)
             # poses = self.detector.detect_facepose(img, faces, landmarks) #実行時負荷増
             # end = time.time()
             # print("time:",end-start)
             #結果表示 ###################################################################################
             pred_index = np.argmax(emo_pred[0])
-            print(self.emolist[pred_index])
+            # print(self.emolist[pred_index])
             # #下向きが負[deg]
             # print("pitch", poses[0][0][0][0])
             # # 左向きが負[deg]
@@ -104,17 +104,13 @@ class Emo_feat(object):
             self._string_pub.publish(self.emotion)
     
     def main(self):
-        print("4")
         self._CamImage_sub = rospy.Subscriber("cam_image", Int32MultiArray, self.emotion_detect)
-print("1")
+
 rospy.init_node("emotion_detect")
-print("2")
+call_service() #キー入力完了をリクエスト
 emotion = Emo_feat()
-
-#service_server() #キー入力完了サービス受信
-call_service() # モデルロード完了サービス送信[変更]
-
-print("3")
+service_server()
+_motor_redy_pub.publish(hoge)
 emotion.main()
 
 while not rospy.is_shutdown():

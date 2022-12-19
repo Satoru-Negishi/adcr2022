@@ -3,14 +3,15 @@
 import rospy
 import numpy as np
 from test.msg import pose as MsgPose
-from std_msgs.msg import UInt8,UInt16, UInt16MultiArray, MultiArrayDimension
-from std_srvs.srv import Empty, EmptyResponse
+from std_msgs.msg import UInt8, MultiArrayDimension
+from std_msgs.msg import Empty as msg_Empty
+from std_srvs.srv import Empty
 
 
 # poseのworld_landmarkの座標について ###################################################
 #   x座標 -1.0 , 1.0 （左 - 右）
 #   y座標 -1.0 , 0.0 , 1.0 （下, 中心[腰] , 上）
-
+#   首サーボモータ　65-115(ギリギリ)
 CENTER = 90
 
 NECK_MAX = 105
@@ -25,9 +26,6 @@ LARM_INI = 180
 RARM_INI = 0
 WAIST_INI = 90
 
-#首サーボモータ　65-115
-
-
 def _numpy2multiarray(multiarray_type, np_array):
     """Convert numpy.ndarray to multiarray"""
     multiarray = multiarray_type()
@@ -35,63 +33,55 @@ def _numpy2multiarray(multiarray_type, np_array):
     multiarray.data = np_array.reshape(1, -1)[0].tolist()
     return multiarray
 
+#キー入力完了のサービス(クライアント) ##################################
+def key_call_service():
+    # rospy.loginfo('[KEY][CLIENT]ros_motor: waiting service')
+    rospy.wait_for_service('EnterKeys_ready')
+    try:
+        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        rospy.loginfo("[KEY][CLIENT]ros_motor: service call failed: %s" % e)
 
-#pyfeatのモデル読み込み完了のサービス(サーバー) ##################################
-def handle_service(req):
-    rospy.loginfo('ros_motor: called')
-    return EmptyResponse()
+#pyfeatのモデル読み込み完了のサービス(クライアント) ##################################
+def emo_call_service():
+    # rospy.loginfo('[EMO][CLIENT]ros_motor: waiting service')
+    rospy.wait_for_service('emotion_ready')
+    try:
+        service = rospy.ServiceProxy('emotion_ready', Empty)
+        response = service()
+    except rospy.ServiceException as  e:
+        rospy.loginfo("[EMO][CLIENT]ros_motor: service call failed: %s" % e)
 
-def service_server():
-    s = rospy.Service('emotion_ready', Empty, handle_service)
-    print('ros_motor: Ready to Serve')
 
 class Landmark2Servo(object):
     def __init__(self):
         #servo制御角度用変数 #####################################################
+        self.neck_forPublish = UInt8(NECK_INI)
+        self.Larm_forPublish = UInt8(LARM_INI)
+        self.Rarm_forPublish = UInt8(LARM_INI)
+        self.waist_forPublish = UInt8(WAIST_INI)
+        
             # N : 現在の角度
         self.neck_Nservo = NECK_INI
         self.Larm_Nservo = LARM_INI
         self.Rarm_Nservo = RARM_INI
         self.waist_Nservo = WAIST_INI
-
         
             # P : 過去の角度
         self.neck_Pservo = NECK_INI
         self.Larm_Pservo = LARM_INI
         self.Rarm_Pservo = RARM_INI
         self.waist_Pservo = WAIST_INI
-
         
-        #     # I : ユーザの初期姿勢
-        # self.ini_head_landmark = []
-        # self.ini_Larm_landmark = []
-        # self.ini_Rarm_landmark = []
-        
-        self.array_forPublish = []
+        # self.array_forPublish = []
         
         # ROS_PUB_SUB ############################################################
         # self._servo_pub = rospy.Publisher("servo", UInt16MultiArray, queue_size=1)
-        self._servo_pub = rospy.Publisher("servo", UInt8, queue_size=1)
-
-   
-    # def position_initialize(self,msg):
-    #     self.initialize = False
-    #     self.ini_head_landmark = list(msg.head)
-    #     self.ini_Larm_landmark = list(msg.Larm)
-    #     self.ini_Rarm_landmark = list(msg.Rarm)
-    #     rospy.loginfo("landmark initialize")
-    #     rospy.loginfo("[ini_head]"+self.ini_head_landmark)
-    #     rospy.loginfo("[ini_Larm]"+self.ini_Larm_landmark)
-    #     rospy.loginfo("[ini_Rarm]"+self.ini_Rarm_landmark)
-       
-    # def handle_motor_service(self,req):
-    #     rospy.loginfo('[MOTOR]ros_motor: called')
-    #     return EmptyResponse()
-
-    # def motor_server(self):
-    #     s = rospy.Service('motor_redy', Empty, self.handle_motor_service)
-    #     print('ros_motor: Ready to Mortor_Serve')       
-       
+        self._Larm_pub = rospy.Publisher("Larm_servo", UInt8, queue_size=1, latch=True)
+        self._Rarm_pub = rospy.Publisher("Rarm_servo", UInt8, queue_size=1, latch=True)
+        self._head_pub = rospy.Publisher("head_servo", UInt8, queue_size=1, latch=True)
+        self._waist_pub = rospy.Publisher("waist_servo", UInt8, queue_size=1, latch=True)       
        
     def head_landmark2servo(self,landmark):
         self.neck_Pservo = self.neck_Nservo
@@ -126,7 +116,6 @@ class Landmark2Servo(object):
 
     def waist_landmark2servo(self,landmark):
         self.waist_Pservo = self.waist_Nservo
-        # self.waist_Nservo = 90 + (90*(landmark[0]*10)/120)
         self.waist_Nservo = 90 + round(90*landmark[0]*100 / 12)
         if self.waist_Nservo < WAIST_MIN:
             self.waist_Nservo = WAIST_MIN
@@ -140,42 +129,44 @@ class Landmark2Servo(object):
         self.Larm_landmark = list(msg.Larm)
         self.Rarm_landmark = list(msg.Rarm)
 
-        # rospy.loginfo(msg)
-        # if self.initialize:
-        #     self.position_initialize(msg)
-        # if 
         self.arm_landmark2servo(self.Larm_landmark,'left')
         self.arm_landmark2servo(self.Rarm_landmark,'right')
         self.waist_landmark2servo(self.head_landmark)
         self.head_landmark2servo(self.head_landmark)
         
-        print("[H]:",self.neck_Nservo," [L]:",self.Larm_Nservo," [R]:",self.Rarm_Nservo," [W]:",self.waist_Nservo)
+        # rospy.loginfo("[H]: %d [L]: %d, [R]: %d [W]: %d",self.neck_Nservo,self.Larm_Nservo,self.Rarm_Nservo,self.waist_Nservo)
         
-        np_forservo = np.array([self.neck_Nservo,self.Larm_Nservo,self.Rarm_Nservo,self.waist_Nservo])
-        self.array_forPublish = UInt8(self.neck_Nservo)
-        # self.array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
-        # self.array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
-                
+        # np_forservo = np.array([self.neck_Nservo,self.Larm_Nservo,self.Rarm_Nservo,self.waist_Nservo])        
         # self._servo_pub.publish(self.array_forPublish)
+        
+        self.neck_forPublish = UInt8(self.neck_Nservo)
+        self.Larm_forPublish = UInt8(self.Larm_Nservo)
+        self.Rarm_forPublish = UInt8(self.Rarm_Nservo)
+        self.waist_forPublish = UInt8(self.waist_Nservo)
         
     def motor_server(self,msg):
-        self._servo_pub.publish(self.array_forPublish)
         # self._servo_pub.publish(self.array_forPublish)
-
+        self._head_pub.publish(self.neck_forPublish)
+        self._Larm_pub.publish(self.Larm_forPublish)
+        self._Rarm_pub.publish(self.Rarm_forPublish)
+        self._waist_pub.publish(self.waist_forPublish)
+        
  
     
     def main(self):
         self._servo_sub = rospy.Subscriber("pose_mediapipe", MsgPose, self.callback)
-        self._ready_sub = rospy.Subscriber("motor_ready", UInt16,self.motor_server ,queue_size=1)
+        self._ready_sub = rospy.Subscriber("motor_ready", msg_Empty,self.motor_server ,queue_size=1)
 
         
 
 
 # main() ########################################################################   
 rospy.init_node('pose2servo')
-motors = Landmark2Servo()
+key_call_service() #キー入力完了をリクエスト
 
-service_server() # モデルロード完了サービス受信
+emo_call_service() #モデルロード完了をリクエスト
+
+motors = Landmark2Servo()
 
 motors.main()
 while not rospy.is_shutdown():

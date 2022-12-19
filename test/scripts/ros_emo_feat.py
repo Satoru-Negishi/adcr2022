@@ -3,19 +3,17 @@ import rospy
 import random
 import numpy as np
 from std_msgs.msg import String,UInt8
-from std_srvs.srv import Empty
-import tkinter as tk
+from std_srvs.srv import Empty,EmptyResponse
 import sys
+   
+#キー読み込み完了のサービス(サーバー) ##################################
+def handle_service(req):
+    # rospy.loginfo('[KEY][SERVER] ros_emo_feat: called')
+    return EmptyResponse()
 
-#キー入力読み込み完了のサービス(クライアント) ##################################
-def call_service():
-    rospy.loginfo('waiting service')
-    rospy.wait_for_service('EnterKeys_ready')
-    try:
-        service = rospy.ServiceProxy('EnterKeys_ready', Empty)
-        response = service()
-    except rospy.ServiceException as  e:
-        print("service call failed: %s" % e)
+def service_server():
+    s = rospy.Service('EnterKeys_ready', Empty, handle_service)
+    # rospy.loginfo('[KEY][SERVER] ros_emo_feat: Ready to Serve')    
     
 class main_infomation(object):
     def __init__(self):
@@ -40,9 +38,11 @@ class main_infomation(object):
         rospy.loginfo('Please select whether or not there is an facial expression filter. [yes or no] ')
         try:
             while True:
-                exp_fil = input()
+                exp_fil = input(">> ")
                 if (exp_fil == 'yes') or (exp_fil== 'no'):
                     break
+                else:
+                    rospy.loginfo('Please select whether or not there is an facial expression filter. [yes or no] ')
         except KeyboardInterrupt:
             sys.exit()
         rospy.loginfo("facial expression filter: %s", exp_fil)
@@ -52,13 +52,16 @@ class main_infomation(object):
         try:
             while True:
                 Inapplicable_characters = False
-                motor_sel = input()
+                motor_sel = input(">> ")
                 motor_sel_l = motor_sel.split(',')
                 for word in motor_sel_l:
                     if not word in ['head','waist','arm','ALL']:
                         Inapplicable_characters = True
                 if Inapplicable_characters == False:
                     break
+                else:
+                    rospy.loginfo('Enter all the motors to be used from [head,waist,arm], or enter [ALL] if all motors are used.  (ex)When using the head and waist => head,waist')
+
         except KeyboardInterrupt:
             sys.exit()
 
@@ -70,9 +73,11 @@ class main_infomation(object):
         rospy.loginfo('Use blink detection filter? [yes or no]')
         try:
             while True:
-                blink_detc = input()
+                blink_detc = input(">> ")
                 if (blink_detc == 'yes') or (blink_detc== 'no'):
                     break
+                else:
+                    rospy.loginfo('Use blink detection filter? [yes or no]')
         except KeyboardInterrupt:
             sys.exit()
 
@@ -111,7 +116,7 @@ class main_infomation(object):
         """
         瞬き
         """
-        if blink_detc == 'yes':
+        if blink_detc != 'yes':
             self.blink.data = msg.data #no_blink,blink
             self._main_blink_pub.publish(self.blink)
         else:
@@ -136,8 +141,8 @@ class main_infomation(object):
         #motor
         self._mian_Larms_sub = rospy.Subscriber("Larm_servo", UInt8, self.Larms_messageCb, motor_sel_l)
         self._mian_Rarm_sub = rospy.Subscriber("Rarm_servo", UInt8, self.Rarm_messageCb, motor_sel_l)
-        self._mian_head_sub = rospy.Subscriber("head", UInt8, self.head_messageCb, motor_sel_l)
-        self._mian_waist_sub = rospy.Subscriber("waist", UInt8, self.waist_messageCb, motor_sel_l)
+        self._mian_head_sub = rospy.Subscriber("head_servo", UInt8, self.head_messageCb, motor_sel_l)
+        self._mian_waist_sub = rospy.Subscriber("waist_servo", UInt8, self.waist_messageCb, motor_sel_l)
         #other 
         self._main_blink_sub = rospy.Subscriber("face_mediapipe", String, self.blink_messageCb, blink_detc)
         self._main_emotion_sub = rospy.Subscriber("emo_feat", String, self.emo_messageCb, exp_fil)
@@ -145,11 +150,10 @@ class main_infomation(object):
                     
 #プログラム起動時実行 #############################################################
 rospy.init_node("main_infomation")
-# root = tk.Tk()
-# root.mainloop()
 main_plogram = main_infomation()
 exp_fil, motor_sel_l, blink_detc = main_plogram.key_reception()
 # call_service()#キー入力完了サービス送信
+service_server()#キー入力完了レスポンス送信
 main_plogram.main(exp_fil, motor_sel_l, blink_detc)
 while not rospy.is_shutdown():
     rospy.spin()
