@@ -59,7 +59,7 @@ class Landmark2Servo(object):
         #servo制御角度用変数 #####################################################
         self.neck_forPublish = UInt8(NECK_INI)
         self.Larm_forPublish = UInt8(LARM_INI)
-        self.Rarm_forPublish = UInt8(LARM_INI)
+        self.Rarm_forPublish = UInt8(RARM_INI)
         self.waist_forPublish = UInt8(WAIST_INI)
         
             # N : 現在の角度
@@ -116,7 +116,7 @@ class Landmark2Servo(object):
 
     def waist_landmark2servo(self,landmark):
         self.waist_Pservo = self.waist_Nservo
-        self.waist_Nservo = 90 + round(90*landmark[0]*100 / 12)
+        self.waist_Nservo = 90 - round(90*landmark[0]*100 / 12)
         if self.waist_Nservo < WAIST_MIN:
             self.waist_Nservo = WAIST_MIN
         if self.waist_Nservo > WAIST_MAX:
