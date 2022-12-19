@@ -3,7 +3,7 @@
 import rospy
 import numpy as np
 from test.msg import pose as MsgPose
-from std_msgs.msg import UInt16, UInt16MultiArray, MultiArrayDimension
+from std_msgs.msg import UInt8,UInt16, UInt16MultiArray, MultiArrayDimension
 from std_srvs.srv import Empty, EmptyResponse
 
 
@@ -13,12 +13,17 @@ from std_srvs.srv import Empty, EmptyResponse
 
 CENTER = 90
 
-NECK_MAX = 115
-NECK_MIN = 65
+NECK_MAX = 105
+NECK_MIN = 75
 ARM_MAX = 180
 ARM_MIN = 0
 WAIST_MAX = 180
 WAIST_MIN = 0
+
+NECK_INI = 90
+LARM_INI = 180
+RARM_INI = 0
+WAIST_INI = 90
 
 #首サーボモータ　65-115
 
@@ -44,16 +49,18 @@ class Landmark2Servo(object):
     def __init__(self):
         #servo制御角度用変数 #####################################################
             # N : 現在の角度
-        self.Larm_Nservo = 180
-        self.Rarm_Nservo = 0
-        self.waist_Nservo = 90
-        self.neck_Nservo = 90
+        self.neck_Nservo = NECK_INI
+        self.Larm_Nservo = LARM_INI
+        self.Rarm_Nservo = RARM_INI
+        self.waist_Nservo = WAIST_INI
+
         
             # P : 過去の角度
-        self.Larm_Pservo = 180
-        self.Rarm_Pservo = 0
-        self.waist_Pservo = 90
-        self.neck_Pservo = 90
+        self.neck_Pservo = NECK_INI
+        self.Larm_Pservo = LARM_INI
+        self.Rarm_Pservo = RARM_INI
+        self.waist_Pservo = WAIST_INI
+
         
         #     # I : ユーザの初期姿勢
         # self.ini_head_landmark = []
@@ -63,7 +70,9 @@ class Landmark2Servo(object):
         self.array_forPublish = []
         
         # ROS_PUB_SUB ############################################################
-        self._servo_pub = rospy.Publisher("servo", UInt16MultiArray, queue_size=1)
+        # self._servo_pub = rospy.Publisher("servo", UInt16MultiArray, queue_size=1)
+        self._servo_pub = rospy.Publisher("servo", UInt8, queue_size=1)
+
    
     # def position_initialize(self,msg):
     #     self.initialize = False
@@ -87,10 +96,10 @@ class Landmark2Servo(object):
     def head_landmark2servo(self,landmark):
         self.neck_Pservo = self.neck_Nservo
         self.neck_Nservo = 90 + round((25*(landmark[1]-0.612)*1000)/32)
-        if self.neck_Nservo < 65:
-            self.neck_Nservo = 65
-        if self.neck_Nservo > 115:
-            self.neck_Nservo = 115
+        if self.neck_Nservo < NECK_MIN:
+            self.neck_Nservo = NECK_MIN
+        if self.neck_Nservo > NECK_MAX:
+            self.neck_Nservo = NECK_MAX
         # print("W_landmark:",landmark[1]," [head]: ",self.neck_Nservo)
         return        
         
@@ -98,18 +107,18 @@ class Landmark2Servo(object):
         if LR == 'left':
             self.Larm_Pservo = self.Larm_Nservo
             self.Larm_Nservo = 180 - round(landmark[1] * 180)
-            if self.Larm_Nservo < 0:
-                self.Larm_Nservo = 0
-            if self.Larm_Nservo > 180:
-                self.Larm_Nservo = 180
+            if self.Larm_Nservo < ARM_MIN:
+                self.Larm_Nservo = ARM_MIN
+            if self.Larm_Nservo > ARM_MAX:
+                self.Larm_Nservo = ARM_MAX
             # print("L_landmark:",landmark[1]," [Larm]: ",self.Larm_Nservo)
         elif LR == 'right':
             self.Rarm_Pservo = self.Rarm_Nservo
             self.Rarm_Nservo = round(landmark[1]*180)
-            if self.Rarm_Nservo < 0:
-                self.Rarm_Nservo = 0
-            if self.Rarm_Nservo > 180:
-                self.Rarm_Nservo = 180
+            if self.Rarm_Nservo < ARM_MIN:
+                self.Rarm_Nservo = ARM_MIN
+            if self.Rarm_Nservo > ARM_MAX:
+                self.Rarm_Nservo = ARM_MIN
             # print("R_landmark:",landmark[1]," [Rarm]: ",self.Rarm_Nservo)
         else:
             pass 
@@ -119,10 +128,10 @@ class Landmark2Servo(object):
         self.waist_Pservo = self.waist_Nservo
         # self.waist_Nservo = 90 + (90*(landmark[0]*10)/120)
         self.waist_Nservo = 90 + round(90*landmark[0]*100 / 12)
-        if self.waist_Nservo < 0:
-            self.waist_Nservo = 0
-        if self.waist_Nservo > 180:
-            self.waist_Nservo = 180
+        if self.waist_Nservo < WAIST_MIN:
+            self.waist_Nservo = WAIST_MIN
+        if self.waist_Nservo > WAIST_MAX:
+            self.waist_Nservo = WAIST_MAX
         # print("W_landmark:",landmark[0]," [waist]: ",self.waist_Nservo)
         return        
         
@@ -143,12 +152,15 @@ class Landmark2Servo(object):
         print("[H]:",self.neck_Nservo," [L]:",self.Larm_Nservo," [R]:",self.Rarm_Nservo," [W]:",self.waist_Nservo)
         
         np_forservo = np.array([self.neck_Nservo,self.Larm_Nservo,self.Rarm_Nservo,self.waist_Nservo])
-        self.array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
+        self.array_forPublish = UInt8(self.neck_Nservo)
+        # self.array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
+        # self.array_forPublish = _numpy2multiarray(UInt16MultiArray,np_forservo) 
                 
         # self._servo_pub.publish(self.array_forPublish)
         
     def motor_server(self,msg):
         self._servo_pub.publish(self.array_forPublish)
+        # self._servo_pub.publish(self.array_forPublish)
 
  
     
