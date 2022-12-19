@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from feat import Detector
 from std_msgs.msg import String, Int32MultiArray, MultiArrayDimension
-from std_srvs.srv import Empty
+from std_srvs.srv import Empty,EmptyResponse
 from torchvision import transforms
 from PIL import Image
 import torch
@@ -19,6 +19,16 @@ def _multiarray2numpy(pytype, dtype, multiarray):
     # dims = map(lambda x: x.size, multiarray.layout.dim)
     # print(multiarray.layout.dim)
     return np.array(multiarray.data, dtype=pytype).reshape(dims).astype(dtype)
+
+#キー読み込み完了のサービス(サーバー) ##################################
+def handle_service(req):
+    rospy.loginfo('ros_emotion: called')
+    return EmptyResponse()
+
+def service_server():
+    s = rospy.Service('EnterKeys_ready', Empty, handle_service)
+    print('ros_emotion: Ready to Serve')
+
 
 #pyfeatのモデル読み込み完了のサービス(クライアント) ##################################
 def call_service():
@@ -101,6 +111,7 @@ rospy.init_node("emotion_detect")
 print("2")
 emotion = Emo_feat()
 
+#service_server() #キー入力完了サービス受信
 call_service() # モデルロード完了サービス送信[変更]
 
 print("3")
